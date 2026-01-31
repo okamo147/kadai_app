@@ -2,66 +2,70 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# 1. アプリの説明 (必須条件①)
+# 1. アプリの説明
 st.title("e-Stat 人口統計可視化アプリ")
-st.caption("e-Statからダウンロードした「年齢各歳別人口」データを分析します。")
+st.caption("e-Statの「年齢各歳別人口」データを分析します。")
 
 # 2. データの読み込み
-# 事前にGitHubリポジトリに CSVファイルをアップロードしておく必要があります
+# アップロードしたファイル名と完全に一致させる
 file_path = "FEH_00200524_260131160542.csv"
 
 try:
-    df_raw = pd.read_csv(file_path, encoding="utf-8") # e-StatのCSVは通常UTF-8
+    # 修正ポイント①: e-StatのCSVは1行目が説明文の場合があるため
+    # header=0 で読み込み、エラーが出る場合はその後の処理で列名を整える
+    df_raw = pd.read_csv(file_path, quotechar='"', skipinitialspace=True)
     
-    # サイドバー設定 (必須条件①)
-    st.sidebar.header("表示設定")
-    
-    # 未使用UI部品①: st.color_picker
-    line_color = st.sidebar.color_picker("グラフの色を選択", "#1f77b4")
+    # 列名の空白を削除
+    df_raw.columns = df_raw.columns.str.strip()
 
-    # データ抽出（「男女計」「総人口」かつ「総数(01000)以外」を抽出）
-    # CSVの列名に合わせてフィルタリング
+    # 3. データの加工 (必須条件①)
+    # 修正ポイント②: 「男女計」「総人口」で絞り込み、かつ年齢が数値化できるもの
+    # 確実に存在する列名であることを確認しつつ処理
+    target_sex = "男女計"
+    target_pop = "総人口"
+    
     df = df_raw[
-        (df_raw["男女別・性比"] == "男女計") & 
-        (df_raw["人口"] == "総人口") & 
-        (df_raw["年齢各歳"] != "総数")
+        (df_raw["男女別・性比"] == target_sex) & 
+        (df_raw["人口"] == target_pop) & 
+        (~df_raw["年齢各歳"].isin(["総数", "（再掲）不詳"]))
     ].copy()
 
-    # 年齢（年齢各歳）を数値に変換（例：「0歳」→ 0）
-    df["age_num"] = df["年齢各歳"].str.extract('(\[0-9\]+)').astype(float)
+    # 年齢の数値化（「0歳」→ 0）
+    df["age_num"] = df["年齢各歳"].str.extract(r'(\d+)').astype(float)
     df["value"] = pd.to_numeric(df["value"], errors='coerce')
 
-    # 時間軸（調査年）の選択 (必須条件①: 条件変更)
+    # サイドバー：調査年選択
     years = df["時間軸（年月日現在）"].unique()
     selected_year = st.sidebar.selectbox("調査年を選択してください", years)
+    
+    # 色選択 (未使用UI部品①)
+    line_color = st.sidebar.color_picker("グラフの色を選択", "#1f77b4")
 
     # 選択された年のデータを抽出
     df_year = df[df["時間軸（年月日現在）"] == selected_year].sort_values("age_num")
 
-    # 3. 可視化 (必須条件①: 2種類以上)
+    # 4. 可視化 (2種類以上)
     st.subheader(f"{selected_year} 年齢別人口分布")
 
-    # グラフ1: Matplotlib (折れ線グラフ)
+    # グラフ1: Matplotlib (折れ線)
     fig, ax = plt.subplots()
-    ax.plot(df_year["age_num"], df_year["value"], color=line_color)
+    ax.plot(df_year["age_num"], df_year["value"], color=line_color, marker='o', markersize=3)
     ax.set_xlabel("年齢")
     ax.set_ylabel("人口（千人）")
     st.pyplot(fig)
 
-    # グラフ2: Streamlit標準の棒グラフ (必須条件①)
-    # 未使用UI部品②: st.bar_chart
-    st.write("年齢別人口（棒グラフ）")
-    st.bar_chart(df_year.set_index("年齢各歳")["value"])
+    # グラフ2: Streamlit Area Chart (未使用UI部品②)
+    st.write("年齢別人口（エリアチャート）")
+    st.area_chart(df_year.set_index("年齢各歳")["value"])
 
-    # 4. データ表示
-    # 未使用UI部品③: st.expander（詳細を隠しておく機能）
+    # 5. データ表示 (未使用UI部品③)
     with st.expander("詳細データ表を確認"):
         st.dataframe(df_year[["年齢各歳", "value"]].style.highlight_max(axis=0))
 
-    # 5. 分析・考察 (必須条件①)
+    # 単位と考察
     st.info("単位：千人")
     st.write("### 【分析結果の考察】")
-    st.write(f"{selected_year}のデータを見ると、特定の年齢層（団塊の世代や団塊ジュニア世代など）にボリュームゾーンがあることがわかります。")
+    st.write(f"{selected_year}のデータを確認すると、特定の年齢層にピークがあり、少子高齢化の傾向が視覚的に把握できます。")
 
     # 6. ダウンロードボタン
     st.sidebar.download_button(
@@ -72,6 +76,8 @@ try:
     )
 
 except FileNotFoundError:
-    st.error(f"エラー: {file_path} が見つかりません。GitHubにCSVファイルをアップロードしてください。")
+    st.error(f"エラー: {file_path} が見つかりません。GitHubに正しいファイル名でアップロードしてください。")
+except KeyError as e:
+    st.error(f"エラー: CSVの列名が見つかりません。列名を確認してください。 {e}")
 except Exception as e:
-    st.error(f"予期せぬエラーが発生しました: {e}")
+    st.error(f"エラーが発生しました: {e}")
