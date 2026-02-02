@@ -12,7 +12,7 @@ try:
         file_path, 
         skiprows=14,  
         quotechar='"', 
-        encoding="utf-8"
+        encoding="utf-8" 
     )
     
     df_raw.columns = df_raw.columns.str.strip()
@@ -38,8 +38,8 @@ try:
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.plot(df_year["age_num"], df_year["value"], color=line_color, marker='o', markersize=2)
-    ax.set_xlabel("年齢")
-    ax.set_ylabel("人口（千人）")
+    ax.set_xlabel("Age")
+    ax.set_ylabel("Population (1000s)")
     st.pyplot(fig)
 
     st.write("人口推移（エリアチャート）")
