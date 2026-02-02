@@ -2,7 +2,7 @@
 
 ・目的: 日本の人口統計データを可視化し、地域ごとの推移を直感的に把握するためのWebアプリです 。
 
-・公開URL: https://kadaiapp-ov7ff7tv5jjfqoqhvdljad.streamlit.app/
+・公開URL: https://kadaiapp-ebyjqebrnydjgltf27isfa.streamlit.app/
 
 ・リポジトリURL: https://github.com/okamo147/kadai_app
 
